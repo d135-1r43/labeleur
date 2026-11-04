@@ -22,14 +22,16 @@ const COLUMN_MIN_MM = 24;
 /** The size the list is set at when tape length is chosen to fit it. */
 const LIST_COMFORT_PT = 10;
 const LIST_LEADING = 1.32;
+/** Marks each item in the list. */
+const BULLET = '•';
 
 /** The link to this box in Labeleur itself. */
 export const boxLink = (appUrl: string, box: BoxRecord) => `${appUrl}/r/boxes/${encodeURIComponent(box.id)}`;
 
 /**
  * Set the list as large as it fits: items run down as many columns as the
- * width allows, and a long item wraps onto a second line, hung behind its dash
- * so the dashes still count the items.
+ * width allows, and a long item wraps onto a second line, hung behind its bullet
+ * so the bullets still count the items.
  */
 function fitList(env: LayoutEnv, items: string[], box: Box, maxPt: number) {
   const { m, ts, locale } = env;
@@ -43,7 +45,7 @@ function fitList(env: LayoutEnv, items: string[], box: Box, maxPt: number) {
   const arrange = (pt: number, cols: number) => {
     const size = ptToMm(pt);
     const colW = (box.w - (cols - 1) * gap) / cols;
-    const indent = measure(m, '–\u2002', style, size);
+    const indent = measure(m, `${BULLET}\u2002`, style, size);
     const pitch = LIST_LEADING * size;
     const placed: { col: number; lines: string[]; y: number }[] = [];
     let col = 0;
@@ -83,7 +85,7 @@ function fitList(env: LayoutEnv, items: string[], box: Box, maxPt: number) {
     const size = ptToMm(ts.minPt);
     const cols = maxCols;
     const colW = (box.w - (cols - 1) * gap) / cols;
-    const indent = measure(m, '–\u2002', style, size);
+    const indent = measure(m, `${BULLET}\u2002`, style, size);
     const placed: { col: number; lines: string[]; y: number }[] = [];
     let col = 0;
     let y = cap * size;
@@ -101,8 +103,8 @@ function fitList(env: LayoutEnv, items: string[], box: Box, maxPt: number) {
   const ops: TextOp[] = [];
   for (const item of set.placed) {
     const x = box.x + item.col * (set.colW + gap);
-    const { width: _dw, ...dash } = setLine(m, '–', style, pt, x, box.y + item.y);
-    ops.push(dash);
+    const { width: _bw, ...bullet } = setLine(m, BULLET, style, pt, x, box.y + item.y);
+    ops.push(bullet);
     item.lines.forEach((line, i) => {
       const { width: _w, ...op } = setLine(m, line, style, pt, x + set.indent, box.y + item.y + i * set.size * 1.15);
       if (op.text) ops.push(op);
@@ -268,7 +270,7 @@ export const contentsKind: KindDef<BoxRecord, ContentsOptions> = {
       const style: TextStyle = { font: ts.roles.text, optical: true };
       const perCol = Math.max(1, Math.floor((listBox.h - m.metrics(style.font).cap * sizeMm) / (LIST_LEADING * sizeMm)) + 1);
       const cols = Math.ceil(items.length / perCol);
-      const colW = Math.max(COLUMN_MIN_MM, ...items.map((t) => measure(m, `– ${t}`, style, sizeMm)));
+      const colW = Math.max(COLUMN_MIN_MM, ...items.map((t) => measure(m, `${BULLET}\u2002${t}`, style, sizeMm)));
       const gap = 3;
       const mainW = Math.max(cols * colW + (cols - 1) * gap, b.title ? measure(m, b.title, { font: ts.roles.strong }, ptToMm(clamp(mmToPt(headH) * 0.48, 8, 26))) + 20 : 0);
       preferred = Math.ceil(mainW + (sideW ? sideW + 2 * pad : 0) + 2 * pad + 2 * CONTINUOUS_FEED_MARGIN_MM + 0.5);

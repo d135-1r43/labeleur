@@ -155,7 +155,7 @@ export function createCanvasMeasurer(): Measurer {
 }
 
 /** Includes the latin-ext glyphs addresses need, so every unicode-range subset gets fetched. */
-const SAMPLE = 'Hxg0123ÄÖÜäöüßẞéèêçñøåłńšžő–—„“”‚‘’…·×→↑↓€°';
+const SAMPLE = 'Hxg0123ÄÖÜäöüßẞéèêçñøåłńšžő–—„“”‚‘’…·•×→↑↓€°';
 
 export async function loadFonts(): Promise<void> {
   const refs = new Map<string, FontRef>();
