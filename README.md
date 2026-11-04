@@ -145,8 +145,9 @@ Guides: [Quinoa](https://docs.quarkiverse.io/quarkus-quinoa/dev/), [Hibernate OR
 
 GitHub Actions (`.github/workflows/ci.yml`) tests the frontend and the backend, builds the JVM image, and starts it against PostgreSQL to check that it serves records, the UI and a print job's PDF.
 
-- A push to `main` publishes `ghcr.io/<owner>/labeleur:latest` and calls the Portainer stack webhook (secret `PORTAINER_WEBHOOK_URL`), which redeploys it.
-- `./mvnw release:prepare` sets the version, tags `vX.Y.Z` and pushes; the tag publishes `X.Y.Z`, `X.Y` and `X`. `release:perform` only verifies the tag; nothing goes to a Maven repository.
+- A push to `main` publishes `ghcr.io/<owner>/labeleur:latest`. Nothing is deployed.
+- `./mvnw release:prepare -B` sets the release version, tags `vX.Y.Z`, moves on to the next snapshot and pushes. The tag publishes the images as `X.Y.Z`, `X.Y` and `X`, creates the GitHub release with the commits since the previous one as notes, and calls the Portainer stack webhook (secret `PORTAINER_WEBHOOK_URL`). `release:perform` only verifies the tag; nothing goes to a Maven repository.
+- Production sets `LABELEUR_VERSION` to the major version (`1`), so the webhook pulls the release just made. A breaking release bumps the major version, and the stack moves to it by hand.
 
 Each build publishes two images, `labeleur` and `labeleur-keycloak`, and the smoke test starts both with `deploy/docker-compose.yml` and signs in. To run Labeleur yourself, copy `deploy/.env.example` to `deploy/.env`, set the public URLs, secrets and SMTP server, and run `docker compose up -d` in `deploy/`.
 
