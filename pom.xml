@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>net.herhoffer.labeleur</groupId>
     <artifactId>labeleur</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0</version>
     <packaging>quarkus</packaging>
 
     <!-- release:prepare pushes the version commits and the vX.Y.Z tag here. -->
@@ -11,7 +11,7 @@
         <connection>scm:git:https://github.com/d135-1r43/labeleur.git</connection>
         <developerConnection>scm:git:git@github.com:d135-1r43/labeleur.git</developerConnection>
         <url>https://github.com/d135-1r43/labeleur</url>
-        <tag>HEAD</tag>
+        <tag>v1.0.0</tag>
     </scm>
 
     <properties>
