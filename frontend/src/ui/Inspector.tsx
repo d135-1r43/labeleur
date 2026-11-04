@@ -90,6 +90,7 @@ function LabelSetup({ preferredLength }: { preferredLength?: number }) {
           </optgroup>
         </select>
       </Field>
+      {media.shape === 'continuous' && <TapePresets />}
       {media.shape === 'continuous' && (
         <Field label="Cut length" hint={preferredLength ? undefined : 'The printer cuts the tape after each label'}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -110,6 +111,48 @@ function LabelSetup({ preferredLength }: { preferredLength?: number }) {
         </button>
       )}
     </Section>
+  );
+}
+
+const presetLabel = (p: { lengthMm: number; readAlong: boolean }) => `${p.lengthMm} mm · ${p.readAlong ? 'along' : 'across'}`;
+
+/** Cut lengths and directions kept with the account, for any label on continuous tape. */
+function TapePresets() {
+  const ks = useKindState();
+  const presets = useStore((s) => s.tapePresets);
+  const patchKind = useStore((s) => s.patchKind);
+  const keep = useStore((s) => s.keepTapePreset);
+  const forget = useStore((s) => s.forgetTapePreset);
+  const [error, setError] = useState<string | null>(null);
+  const current = presets.find((p) => p.lengthMm === ks.lengthMm && p.readAlong === ks.readAlong);
+  const run = (action: Promise<void>) => {
+    setError(null);
+    action.catch((e: Error) => setError(e.message));
+  };
+  return (
+    // A group of buttons, so not a <label> like Field: a click between them must not press the first.
+    <div className="field">
+      <span>Presets</span>
+      <div className="chips">
+        {presets.map((p) => (
+          <span key={p.id} className="preset">
+            <button className="chip" aria-pressed={p === current} onClick={() => patchKind({ lengthMm: clampLength(p.lengthMm), readAlong: p.readAlong })}>
+              {presetLabel(p)}
+            </button>
+            <button className="remove" title={`Forget ${presetLabel(p)}`} aria-label={`Forget preset ${presetLabel(p)}`} onClick={() => run(forget(p.id))}>
+              <Icon.close />
+            </button>
+          </span>
+        ))}
+        {!current && (
+          <button className="chip keep" onClick={() => run(keep())}>
+            <Icon.plus /> Keep {presetLabel(ks)}
+          </button>
+        )}
+      </div>
+      {!presets.length && <div className="hint">Keep a cut length and direction to set both again in one click.</div>}
+      {error && <div className="hint bad">{error}</div>}
+    </div>
   );
 }
 

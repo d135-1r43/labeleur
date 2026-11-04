@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { accountApi, httpApi, settingsApi, type Me } from '../api/http';
+import { accountApi, httpApi, settingsApi, tapePresetsApi, type Me, type TapePreset } from '../api/http';
 import type { LabeleurApi, Organisation, PdfMode, PrintJob, Printer } from '../api/types';
 import { decodeBitmap } from '../engine/bitmap';
 import { landscapeReadAlong } from '../engine/frame';
@@ -51,6 +51,8 @@ interface Store {
   prefsOpen: boolean;
 
   org: Organisation | null;
+  /** Cut lengths and directions kept for continuous tape, shortest first. */
+  tapePresets: TapePreset[];
   printers: Printer[];
   jobs: PrintJob[];
 
@@ -65,6 +67,9 @@ interface Store {
   createRecord(): void;
   deleteRecords(ids: string[]): void;
   setEntity(id: EntityId, patch: Partial<EntityPrefs>): void;
+  /** Keep the current label's cut length and direction as a preset. */
+  keepTapePreset(): Promise<void>;
+  forgetTapePreset(id: string): Promise<void>;
   set<K extends keyof Store>(key: K, value: Store[K]): void;
   boot(): Promise<void>;
   /** Upload a new logo, or remove it with null. */
@@ -112,6 +117,7 @@ export const useStore = create<Store>()(
         me: null,
         prefsOpen: false,
         org: null,
+        tapePresets: [],
         printers: [],
         jobs: [],
 
@@ -183,6 +189,19 @@ export const useStore = create<Store>()(
             if (next) s.setKind(next);
           }
         },
+        async keepTapePreset() {
+          const { lengthMm, readAlong } = get().kinds[get().kindId];
+          const kept = await tapePresetsApi.add({ lengthMm, readAlong });
+          set((s) => ({ tapePresets: sortPresets([...s.tapePresets.filter((p) => p.id !== kept.id), kept]) }));
+        },
+        async forgetTapePreset(id) {
+          const before = get().tapePresets;
+          set({ tapePresets: before.filter((p) => p.id !== id) });
+          await tapePresetsApi.remove(id).catch((e) => {
+            set({ tapePresets: before });
+            throw e;
+          });
+        },
         set(key, value) {
           set({ [key]: value } as Partial<Store>);
         },
@@ -190,8 +209,8 @@ export const useStore = create<Store>()(
           try {
             // First, so a new user's sample data exists before anything else is read.
             const me = await accountApi.me();
-            const [org, printers, jobs, entities] = await Promise.all([api.organisation().then(withLogo), api.printers(), api.jobs(), settingsApi.all(), useDb.getState().load()]);
-            set({ me, org, printers, jobs, entities: { ...get().entities, ...entities }, bootError: null });
+            const [org, printers, jobs, entities, tapePresets] = await Promise.all([api.organisation().then(withLogo), api.printers(), api.jobs(), settingsApi.all(), tapePresetsApi.all(), useDb.getState().load()]);
+            set({ me, org, printers, jobs, entities: { ...get().entities, ...entities }, tapePresets, bootError: null });
           } catch (e) {
             set({ bootError: (e as Error).message });
             return;
@@ -240,6 +259,8 @@ export const useStore = create<Store>()(
     },
   ),
 );
+
+const sortPresets = (presets: TapePreset[]) => [...presets].sort((a, b) => a.lengthMm - b.lengthMm || Number(a.readAlong) - Number(b.readAlong));
 
 /** Fetch and decode the logo, if there is one. A logo that fails to load is left off the labels. */
 async function withLogo(org: Organisation): Promise<Organisation> {

@@ -2158,3 +2158,51 @@ textarea.input.contents-list {
     padding: 40px 20px !important;
   }
 }
+
+/* ───────── tape presets ───────── */
+
+.preset {
+  display: inline-flex;
+  align-items: center;
+}
+
+.preset .chip {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.preset .remove {
+  display: inline-grid;
+  place-items: center;
+  height: 24px;
+  width: 22px;
+  border: 1px solid var(--rule-strong);
+  border-left: 0;
+  border-radius: 0 12px 12px 0;
+  background: var(--paper);
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.preset .remove:hover {
+  color: var(--ink);
+  border-color: var(--ink-3);
+}
+
+.chip.keep {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-style: dashed;
+  color: var(--ink-2);
+}
+
+.field .hint.bad {
+  color: var(--error);
+}
+
+.preset .chip[aria-pressed='true'] + .remove {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}

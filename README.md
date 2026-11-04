@@ -81,6 +81,8 @@ Labeleur keeps its own database of the records it prints: contacts, inventory, l
 
 In **Preferences** (cog, top right) the sender card holds your address and logo. Each label type is a card with a live preview. It can be switched off, which removes it from the sidebar, and given a leading system: a name and the base URL its records live under.
 
+On continuous tape, the **Label** panel keeps presets: a cut length and the direction the text runs, set again in one click. They are saved with your account and offered on every label type.
+
 On a fresh database the sample organisation is seeded from `src/main/resources/seed` (`labeleur.seed-on-start`).
 
 ## Backend
@@ -94,6 +96,7 @@ Quarkus with Hibernate ORM and Panache in the repository pattern: one `PanacheRe
 | `DELETE /api/records/{collection}/{id}` | removes Labeleur's copy only |
 | `POST /api/records/{collection}/reset` | restore the samples |
 | `GET`, `PUT /api/settings/entities[/{id}]` | on/off and leading system per entity |
+| `GET`, `POST /api/settings/tape-presets`, `DELETE …/{id}` | cut length (25–300 mm) and direction presets for continuous tape; keeping one twice returns the first |
 | `GET /api/me` | the signed-in user; sets up their sample data on first call. Signed out: 499 to `fetch()`, which shows the landing page |
 | `GET`, `PUT /api/organisation` | the user's sender: return address and owner line |
 | `GET`, `PUT`, `DELETE /api/organisation/logo` | the logo on case labels and asset tags: PNG, JPEG, GIF, WebP or SVG, up to 2 MB |

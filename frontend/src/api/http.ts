@@ -87,6 +87,19 @@ export const settingsApi = {
   put: (entity: EntityId, prefs: EntityPrefs) => call<EntityPrefs>('PUT', `/settings/entities/${entity}`, prefs),
 };
 
+/** A cut length and text direction for continuous tape, kept with the account. */
+export interface TapePreset {
+  id: string;
+  lengthMm: number;
+  readAlong: boolean;
+}
+
+export const tapePresetsApi = {
+  all: () => call<TapePreset[]>('GET', '/settings/tape-presets'),
+  add: (preset: Omit<TapePreset, 'id'>) => call<TapePreset>('POST', '/settings/tape-presets', preset),
+  remove: (id: string) => call<void>('DELETE', `/settings/tape-presets/${encodeURIComponent(id)}`),
+};
+
 export const httpApi: LabeleurApi = {
   organisation: () => call('GET', '/organisation'),
   printers: () => call('GET', '/printers'),
