@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>net.herhoffer.labeleur</groupId>
     <artifactId>labeleur</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0-SNAPSHOT</version>
     <packaging>quarkus</packaging>
 
     <!-- release:prepare pushes the version commits and the vX.Y.Z tag here. -->
