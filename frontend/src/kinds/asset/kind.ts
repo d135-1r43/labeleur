@@ -1,5 +1,5 @@
 import type { InventoryItem } from '../../db/types';
-import { placeCode, type Symbology } from '../../engine/barcode';
+import { codeModules, placeCode, type Symbology } from '../../engine/barcode';
 import { placeBitmap } from '../../engine/bitmap';
 import type { DrawOp, Issue, TextOp } from '../../engine/display';
 import { fitText, measure, type Box, type TextStyle } from '../../engine/text';
@@ -64,6 +64,9 @@ export function assetPayload(item: InventoryItem, o: AssetOptions, appUrl: strin
   return item.uri || item.assetTag;
 }
 
+/** Module size of the code beside the text: comfortably above what phone cameras resolve at arm's length. */
+const SIDE_MODULE_DOTS = 5;
+
 export const assetKind: KindDef<InventoryItem, AssetOptions> = {
   id: 'asset',
   name: 'Asset tag',
@@ -97,7 +100,9 @@ export const assetKind: KindDef<InventoryItem, AssetOptions> = {
     if (o.symbology === 'qr' && o.qrTarget !== 'labeleur' && !item.uri) issues.push({ id: 'asset-unlinked', severity: 'warn', message: 'Not linked to the inventory', detail: 'The QR code holds only the asset tag, so a phone camera cannot open the record. Add the link above.' });
     // Code left with a text column beside it, as long as that column has room for the name;
     // otherwise (small square and round labels) just the code over the tag.
-    const sideCode = Math.min(H - 2 * pad, W * 0.42);
+    // The code is no bigger than a phone needs: 5-dot (0.42 mm) modules, so the text gets the room.
+    const mods = codeModules(o.symbology, payload);
+    const sideCode = Math.min(H - 2 * pad, W * 0.42, mods ? dotsToMm(mods.cols * SIDE_MODULE_DOTS + 2) : Infinity);
     const sideCol = W - 2 * pad - sideCode - Math.max(sideCode * 0.16, 1.6);
     const sideBySide = W / H >= 1.6 || (frame.shape !== 'round' && sideCol >= 18 && H >= 18);
 
@@ -116,12 +121,14 @@ export const assetKind: KindDef<InventoryItem, AssetOptions> = {
       return { ops, issues };
     }
 
-    // Side by side: the code sits left, full height; text aligns to its top and bottom edges.
+    // Side by side: the code sits left, vertically centred; the text column runs the full printable height
+    // (or aligns to the code's edges when the code fills that height anyway).
     const codeSide = sideCode;
     const codeY = (H - codeSide) / 2;
     // Left, top and bottom of the code are bare paper out to the label edge; the right side is kept clear by the column gap.
     const code = placeCode(o.symbology, payload, { x: pad, y: codeY, w: codeSide, h: codeSide }, frame, {
       align: 'start',
+      maxModuleDots: SIDE_MODULE_DOTS,
       clear: { left: pad + frame.offX, top: codeY + frame.offY, bottom: codeY + frame.offY, right: Infinity },
     });
     if (code.op) ops.push(code.op);
@@ -131,8 +138,9 @@ export const assetKind: KindDef<InventoryItem, AssetOptions> = {
     const colW = W - pad - colX;
     // Type scales with the label's height, but no further than the column beside the code is wide.
     k = Math.min(k, Math.max(0.55, colW / 22));
-    const colTop = code.box.y;
-    const colBottom = code.box.y + code.box.h;
+    const fullHeight = code.box.h >= (H - 2 * pad) * 0.9;
+    const colTop = fullHeight ? code.box.y : pad;
+    const colBottom = fullHeight ? code.box.y + code.box.h : H - pad;
 
     const tag = tagOps(env, item.assetTag, { x: colX, y: colTop, w: colW, h: colBottom - colTop }, 15 * k, 'left', 'bottom');
     ops.push(...tag.ops);

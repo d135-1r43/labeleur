@@ -38,6 +38,20 @@ describe('asset tag layout', () => {
     expect(t).toMatch(/property of acme/i);
   });
 
+  it('keeps the code phone-sized instead of filling the label', () => {
+    const env = {
+      m,
+      frame: makeFrame({ media: mediaById('DK-22205'), readAlong: false, lengthMm: 45 }),
+      ts: typeSystemById('plex'),
+      locale: 'en' as const,
+      org: { name: 'Acme', address: {} } as never,
+      now: new Date(),
+      appUrl: 'https://labeleur.test',
+    };
+    const code = assetKind.layout(item, assetKind.defaultOptions, env).ops.find((op) => op.t === 'matrix');
+    expect(code && code.t === 'matrix' && code.moduleDots).toBe(5);
+  });
+
   it('keeps small square labels to code and tag', () => {
     const t = texts('DK-11221', false);
     expect(t).toContain('001');
