@@ -3,7 +3,7 @@ import { entityById, hostOf, isUri, locationCode } from '../db/entities';
 import type { AllergenCode, Box, Contact, DbRecord, FoodProduct, InventoryItem, Sign, StorageLocation } from '../db/types';
 import { countryName, normalizePostcode, parseAddress, ruleFor, SUPPORTED_COUNTRIES } from '../kinds/address/address';
 import type { AddressOptions } from '../kinds/address/kind';
-import { assetPayload, type AssetOptions } from '../kinds/asset/kind';
+import { assetPayload, isPrinted, type AssetOptions } from '../kinds/asset/kind';
 import { boxLink, type ContentsOptions } from '../kinds/contents/kind';
 import { ALLERGENS, useBy, type FoodOptions } from '../kinds/food/kind';
 import type { LocationOptions } from '../kinds/location/kind';
@@ -315,6 +315,7 @@ export function AssetEditor({ rec, options, onChange, setOption }: EditorProps<I
           </Field>
         </div>
       </Section>
+      <AssetAttributes rec={rec} options={options} onChange={onChange} setOption={setOption} />
       <Section title="Layout">
         <Field
           label="Code"
@@ -362,6 +363,65 @@ export function AssetEditor({ rec, options, onChange, setOption }: EditorProps<I
         <Toggle checked={options.logo} onChange={(v) => setOption('logo', v)} label="Logo" hint={org?.logo ? 'Your logo, top right' : 'No logo yet: add one in Preferences'} />
       </Section>
     </>
+  );
+}
+
+/** Free key-value properties. Keys come from what any asset already uses; a new one exists once typed. */
+function AssetAttributes({ rec, options, onChange, setOption }: Omit<EditorProps<InventoryItem, AssetOptions>, 'now'>) {
+  const records = useRecords('asset') as InventoryItem[];
+  const attributes = rec.attributes ?? [];
+  const keys = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const r of records) for (const a of r.attributes ?? []) if (a.key.trim()) seen.set(a.key.trim().toLocaleLowerCase(), a.key.trim());
+    for (const k of options.attributes ?? []) if (!seen.has(k.toLocaleLowerCase())) seen.set(k.toLocaleLowerCase(), k);
+    return [...seen.values()].sort((a, b) => a.localeCompare(b));
+  }, [records, options.attributes]);
+  const setAll = (next: InventoryItem['attributes']) => onChange({ ...rec, attributes: next });
+  const setAt = (i: number, patch: Partial<{ key: string; value: string }>) => setAll(attributes.map((a, j) => (j === i ? { ...a, ...patch } : a)));
+  const togglePrint = (key: string) => {
+    const k = key.trim();
+    if (!k) return;
+    const printed = options.attributes ?? [];
+    setOption('attributes', isPrinted(options, k) ? printed.filter((p) => p.toLocaleLowerCase() !== k.toLocaleLowerCase()) : [...printed, k]);
+  };
+  return (
+    <Section title="Attributes">
+      {attributes.length > 0 && (
+        <div className="segments attributes">
+          {attributes.map((a, i) => {
+            const printed = !!a.key.trim() && isPrinted(options, a.key);
+            return (
+              <div className="segment attribute" key={i}>
+                <input className="input" value={a.key} list="asset-attribute-keys" placeholder="Size, colour …" aria-label={`Attribute ${i + 1} name`} onChange={(e) => setAt(i, { key: e.target.value })} />
+                <input className="input" value={a.value} placeholder="Value" aria-label={`${a.key || `Attribute ${i + 1}`} value`} onChange={(e) => setAt(i, { value: e.target.value })} />
+                <button
+                  className="btn icon ghost print-toggle"
+                  aria-pressed={printed}
+                  disabled={!a.key.trim()}
+                  title={printed ? `${a.key} is printed on the label` : `Print ${a.key || 'this attribute'} on the label`}
+                  aria-label={`Print ${a.key || 'attribute'} on the label`}
+                  onClick={() => togglePrint(a.key)}
+                >
+                  <Icon.printer />
+                </button>
+                <button className="btn icon ghost" aria-label={`Remove ${a.key || 'attribute'}`} onClick={() => setAll(attributes.filter((_, j) => j !== i))}>
+                  <Icon.close />
+                </button>
+              </div>
+            );
+          })}
+          <datalist id="asset-attribute-keys">
+            {keys.map((k) => (
+              <option key={k} value={k} />
+            ))}
+          </datalist>
+        </div>
+      )}
+      <button className="btn ghost small" style={{ justifySelf: 'start' }} onClick={() => setAll([...attributes, { key: '', value: '' }])}>
+        <Icon.plus /> Add an attribute
+      </button>
+      {attributes.length > 0 && <div className="hint">The printer button puts an attribute on the label, for every asset that has it.</div>}
+    </Section>
   );
 }
 

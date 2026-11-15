@@ -14,7 +14,19 @@ export interface AssetOptions {
   ownerLine: boolean;
   logo: boolean;
   detail: 'serial' | 'location' | 'both' | 'none';
+  /** Attribute keys printed on the label, for every asset that has them. */
+  attributes: string[];
 }
+
+const sameKey = (a: string, b: string) => a.trim().toLocaleLowerCase() === b.trim().toLocaleLowerCase();
+
+/** The attributes of this item the label prints, in the item's own order. */
+export function printedAttributes(item: InventoryItem, o: AssetOptions) {
+  const keys = o.attributes ?? [];
+  return (item.attributes ?? []).filter((a) => a.key.trim() && a.value.trim() && keys.some((k) => sameKey(k, a.key)));
+}
+
+export const isPrinted = (o: AssetOptions, key: string) => (o.attributes ?? []).some((k) => sameKey(k, key));
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
@@ -59,7 +71,7 @@ export const assetKind: KindDef<InventoryItem, AssetOptions> = {
   defaultMedia: 'DK-11201',
   media: ['DK-11201', 'DK-11221', 'DK-11204', 'DK-22211', 'DK-11209'],
   defaultTypeSystem: 'plex',
-  defaultOptions: { symbology: 'qr', qrTarget: 'leading', ownerLine: true, logo: true, detail: 'serial' },
+  defaultOptions: { symbology: 'qr', qrTarget: 'leading', ownerLine: true, logo: true, detail: 'serial', attributes: [] },
   entity: 'inventory',
 
 
@@ -79,7 +91,7 @@ export const assetKind: KindDef<InventoryItem, AssetOptions> = {
       oy = (H - side) / 2;
       W = H = side;
     }
-    const k = clamp(H / 25.9, 0.55, 2.2);
+    let k = clamp(H / 25.9, 0.55, 2.2);
     const pad = frame.shape === 'round' ? 0.3 : clamp(Math.min(W, H) * 0.075, 1, 3.5);
     const payload = assetPayload(item, o, env.appUrl);
     if (o.symbology === 'qr' && o.qrTarget !== 'labeleur' && !item.uri) issues.push({ id: 'asset-unlinked', severity: 'warn', message: 'Not linked to the inventory', detail: 'The QR code holds only the asset tag, so a phone camera cannot open the record. Add the link above.' });
@@ -100,7 +112,7 @@ export const assetKind: KindDef<InventoryItem, AssetOptions> = {
       issues.push(...code.issues);
       const tag = tagOps(env, item.assetTag, { x: ox + pad, y: code.box.y + code.box.h + 0.8, w: W - 2 * pad, h: oy + H - pad - (code.box.y + code.box.h + 0.8) }, 9 * k, 'center', 'bottom');
       ops.push(...tag.ops);
-      if (o.ownerLine || o.logo || o.detail !== 'none') issues.push({ id: 'asset-compact', severity: 'info', message: 'Compact label: only the code and tag are printed', detail: 'Use a 29 × 90 mm label for the name and details.' });
+      if (o.ownerLine || o.logo || o.detail !== 'none' || printedAttributes(item, o).length) issues.push({ id: 'asset-compact', severity: 'info', message: 'Compact label: only the code and tag are printed', detail: 'Use a 29 × 90 mm label for the name and details.' });
       return { ops, issues };
     }
 
@@ -117,6 +129,8 @@ export const assetKind: KindDef<InventoryItem, AssetOptions> = {
     const quiet = code.moduleMm * (o.symbology === 'qr' ? 4 : 2);
     const colX = code.box.x + code.box.w + Math.max(quiet, 1.6);
     const colW = W - pad - colX;
+    // Type scales with the label's height, but no further than the column beside the code is wide.
+    k = Math.min(k, Math.max(0.55, colW / 22));
     const colTop = code.box.y;
     const colBottom = code.box.y + code.box.h;
 
@@ -127,13 +141,21 @@ export const assetKind: KindDef<InventoryItem, AssetOptions> = {
     const details = [o.detail === 'serial' || o.detail === 'both' ? (item.serial ? `S/N ${item.serial}` : '') : '', o.detail === 'location' || o.detail === 'both' ? item.location : '']
       .filter(Boolean)
       .join('  ·  ');
-    if (details) {
+    const attributes = printedAttributes(item, o)
+      .map((a) => `${a.key.trim()}: ${a.value.trim()}`)
+      .join('  ·  ');
+    // Set from the tag upwards: details right above it, the attributes above those.
+    for (const [text, id, message] of [
+      [details, 'asset-detail', 'Details are cut short'],
+      [attributes, 'asset-attributes', 'Attributes are cut short'],
+    ] as const) {
+      if (!text) continue;
       const sizePt = clamp(6 * k, ts.minPt, 8);
       const style: TextStyle = { font: ts.roles.text, optical: true };
       const capH = m.metrics(style.font).cap * ptToMm(sizePt);
-      const fit = fitText(m, { text: details, box: { x: colX, y: bottom - ptToMm(sizePt) * 0.95 - capH, w: colW, h: capH }, style, maxPt: sizePt, minPt: ts.minPt, wrap: false, maxLines: 1 });
+      const fit = fitText(m, { text, box: { x: colX, y: bottom - ptToMm(sizePt) * 0.95 - capH, w: colW, h: capH }, style, maxPt: sizePt, minPt: ts.minPt, wrap: false, maxLines: 1 });
       ops.push(...fit.ops);
-      if (fit.overflow) issues.push({ id: 'asset-detail', severity: 'warn', message: 'Details are cut short', detail: 'Show fewer details or use a longer label.' });
+      if (fit.overflow) issues.push({ id, severity: 'warn', message, detail: 'Print fewer of them or use a longer label.' });
       bottom = fit.firstBaseline - capH;
     }
 
@@ -156,10 +178,15 @@ export const assetKind: KindDef<InventoryItem, AssetOptions> = {
       const capH = m.metrics(style.font).cap * ptToMm(sizePt);
       const label = locale === 'de' ? `Eigentum ${org.name}` : `Property of ${org.name}`;
       const set = (box: Box, lines: number) => fitText(m, { text: label, box, style: { ...style, leading: 1.25 }, maxPt: sizePt, minPt: ts.minPt, wrap: lines > 1, maxLines: lines, locale });
-      // Beside the logo. On tall labels, where there is room to spare, underneath it on up to two lines when it would be squeezed.
+      // Beside the logo. On tall labels, underneath it when it would be squeezed there, on two lines or one,
+      // as long as the asset name keeps room for at least one line.
+      const nameGap = ptToMm(7 * k) * 0.45;
+      const nameRoom = (f: ReturnType<typeof set>) => bottom - (f.lastBaseline + ptToMm(sizePt)) - nameGap >= ptToMm(Math.max(ts.minPt, 7 * k * 0.8)) * 1.1;
       let fit = ownerW > 8 ? set({ x: colX, y: logoBottom === undefined ? colTop : logoBottom - capH, w: ownerW, h: capH }, 1) : undefined;
       if (logoBottom !== undefined && H >= 30 && (!fit || fit.overflow || fit.sizePt < sizePt * 0.85)) {
-        fit = set({ x: colX, y: logoBottom + ptToMm(sizePt) * 0.6, w: colW, h: capH + ptToMm(sizePt) * 1.25 }, 2);
+        const y = logoBottom + ptToMm(sizePt) * 0.6;
+        const below = [set({ x: colX, y, w: colW, h: capH + ptToMm(sizePt) * 1.25 }, 2), set({ x: colX, y, w: colW, h: capH }, 1)].find(nameRoom);
+        if (below) fit = below;
       }
       if (fit) {
         ops.push(...fit.ops);
@@ -182,6 +209,8 @@ export const assetKind: KindDef<InventoryItem, AssetOptions> = {
       });
       ops.push(...fit.ops);
       if (fit.overflow) issues.push({ id: 'asset-name', severity: 'warn', message: 'Asset name is shortened', detail: `“${item.name}” is too long for this label.` });
+    } else if (item.name.trim()) {
+      issues.push({ id: 'asset-name', severity: 'warn', message: 'No room for the asset name', detail: 'Print fewer details or attributes, or use a longer label.' });
     }
     return { ops, issues };
   },

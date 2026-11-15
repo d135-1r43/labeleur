@@ -6,6 +6,7 @@ import io.restassured.http.ContentType;
 import org.junit.jupiter.api.Test;
 
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
@@ -29,6 +30,24 @@ class RecordResourceTest
 			.body("find { it.id == 'c1' }.group", equalTo("Customers"))
 			// Optional fields are left out, not sent as null.
 			.body("find { it.id == 'c2' }", not(org.hamcrest.Matchers.hasKey("company")));
+	}
+
+	@Test
+	void keepsAssetAttributesInOrder()
+	{
+		String body = """
+			{"assetTag": "NL-999002", "name": "Jacket", "category": "Clothing", "location": "Store",
+			 "attributes": [{"key": "Size", "value": "L"}, {"key": "Colour", "value": "Navy"}]}
+			""";
+		given().contentType(ContentType.JSON).body(body).put("/api/records/inventory/inv-test-2").then()
+			.statusCode(200)
+			.body("attributes.key", contains("Size", "Colour"))
+			.body("attributes.value", contains("L", "Navy"));
+		given().get("/api/records/inventory").then().body("find { it.id == 'inv-test-2' }.attributes[1].value", equalTo("Navy"));
+
+		given().contentType(ContentType.JSON).body(body.replace("\"key\": \"Size\"", "\"key\": \" \"")).put("/api/records/inventory/inv-test-2").then()
+			.statusCode(400);
+		given().delete("/api/records/inventory/inv-test-2").then().statusCode(204);
 	}
 
 	@Test
