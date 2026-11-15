@@ -83,9 +83,13 @@ export const assetKind: KindDef<InventoryItem, AssetOptions> = {
     const pad = frame.shape === 'round' ? 0.3 : clamp(Math.min(W, H) * 0.075, 1, 3.5);
     const payload = assetPayload(item, o, env.appUrl);
     if (o.symbology === 'qr' && o.qrTarget !== 'labeleur' && !item.uri) issues.push({ id: 'asset-unlinked', severity: 'warn', message: 'Not linked to the inventory', detail: 'The QR code holds only the asset tag, so a phone camera cannot open the record. Add the link above.' });
-    const aspect = W / H;
+    // Code left with a text column beside it, as long as that column has room for the name;
+    // otherwise (small square and round labels) just the code over the tag.
+    const sideCode = Math.min(H - 2 * pad, W * 0.42);
+    const sideCol = W - 2 * pad - sideCode - Math.max(sideCode * 0.16, 1.6);
+    const sideBySide = W / H >= 1.6 || (frame.shape !== 'round' && sideCol >= 18 && H >= 18);
 
-    if (aspect < 1.6) {
+    if (!sideBySide) {
       // Square and round: code on top, tag underneath.
       const tagCap = Math.max(ptToMm(7 * k) * 0.7, 1.6);
       const codeSide = Math.min(W - 2 * pad, H - 2 * pad - tagCap - 1.4);
@@ -100,8 +104,8 @@ export const assetKind: KindDef<InventoryItem, AssetOptions> = {
       return { ops, issues };
     }
 
-    // Landscape: the code sits left, full height; text aligns to its top and bottom edges.
-    const codeSide = Math.min(H - 2 * pad, W * 0.42);
+    // Side by side: the code sits left, full height; text aligns to its top and bottom edges.
+    const codeSide = sideCode;
     const codeY = (H - codeSide) / 2;
     // Left, top and bottom of the code are bare paper out to the label edge; the right side is kept clear by the column gap.
     const code = placeCode(o.symbology, payload, { x: pad, y: codeY, w: codeSide, h: codeSide }, frame, {
@@ -146,14 +150,21 @@ export const assetKind: KindDef<InventoryItem, AssetOptions> = {
         top = logoBottom + ptToMm(7 * k) * 0.35;
       }
     }
-    if (o.ownerLine && H >= 18 && ownerW > 8) {
+    if (o.ownerLine && H >= 18) {
       const style: TextStyle = { font: ts.roles.caption, caps: true, tracking: ts.capsTracking };
       const sizePt = clamp(5.5 * k, ts.minPt, 7);
       const capH = m.metrics(style.font).cap * ptToMm(sizePt);
       const label = locale === 'de' ? `Eigentum ${org.name}` : `Property of ${org.name}`;
-      const fit = fitText(m, { text: label, box: { x: colX, y: logoBottom === undefined ? colTop : logoBottom - capH, w: ownerW, h: capH }, style, maxPt: sizePt, minPt: ts.minPt, wrap: false, maxLines: 1, locale });
-      ops.push(...fit.ops);
-      top = Math.max(top, fit.lastBaseline + ptToMm(sizePt) * 1.0);
+      const set = (box: Box, lines: number) => fitText(m, { text: label, box, style: { ...style, leading: 1.25 }, maxPt: sizePt, minPt: ts.minPt, wrap: lines > 1, maxLines: lines, locale });
+      // Beside the logo. On tall labels, where there is room to spare, underneath it on up to two lines when it would be squeezed.
+      let fit = ownerW > 8 ? set({ x: colX, y: logoBottom === undefined ? colTop : logoBottom - capH, w: ownerW, h: capH }, 1) : undefined;
+      if (logoBottom !== undefined && H >= 30 && (!fit || fit.overflow || fit.sizePt < sizePt * 0.85)) {
+        fit = set({ x: colX, y: logoBottom + ptToMm(sizePt) * 0.6, w: colW, h: capH + ptToMm(sizePt) * 1.25 }, 2);
+      }
+      if (fit) {
+        ops.push(...fit.ops);
+        top = Math.max(top, fit.lastBaseline + ptToMm(sizePt) * 1.0);
+      }
     }
 
     const nameBox = { x: colX, y: top, w: colW, h: Math.max(0, bottom - top - ptToMm(7 * k) * 0.45) };
