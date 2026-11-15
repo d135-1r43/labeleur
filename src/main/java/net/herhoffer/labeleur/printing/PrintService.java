@@ -51,7 +51,7 @@ public class PrintService
 
 		PrintJob job = new PrintJob();
 		job.id = UUID.randomUUID();
-		job.userId = user.id();
+		job.userId = user.ownerId();
 		job.printerId = printer.id;
 		job.printerName = printer.name;
 		job.mediaId = req.mediaId();
@@ -93,13 +93,13 @@ public class PrintService
 
 	public List<PrintJob> recent()
 	{
-		return jobs.recent(user.id(), 20);
+		return jobs.recent(user.ownerId(), 20);
 	}
 
 	public byte[] pdf(UUID jobId)
 	{
 		// Someone else's job is as absent as one that never existed.
-		PrintDocument doc = jobs.findOwned(user.id(), jobId) == null ? null : documents.findById(jobId);
+		PrintDocument doc = jobs.findOwned(user.ownerId(), jobId) == null ? null : documents.findById(jobId);
 		if (doc == null) throw new NotFoundException();
 		return doc.pdf;
 	}

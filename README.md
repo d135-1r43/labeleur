@@ -70,6 +70,12 @@ Signed out, `/` is a one-page introduction with sample labels set by the real en
 
 Keycloak signs people in (OIDC code flow with PKCE; the app holds the session). Every user has their own records, settings, sender address and print jobs, keyed by their OIDC subject. A new user starts with the sample organisation's data and can restore it per entity later.
 
+**Organisations.** Records, settings, sender, presets and print jobs are keyed by an account, not a person. Someone who registers works alone on their own account (keyed by their OIDC subject). Inviting someone (Preferences → People) turns that account into an organisation: everyone in it works on the same data and, for now, may do everything, including inviting and removing others. The founder (whose account it was) stays in. A `membership` row maps a member to the founder's subject; `CurrentUser.ownerId()` resolves it, so the rest of the backend is unaware.
+
+- **Invitations** go out by email (`quarkus-mailer`, the same SMTP settings as Keycloak; Mailpit in dev) and can also be copied as a link. They last 14 days; inviting the same address again sends a fresh link.
+- **Joining**: signed out, `/invite/{token}` opens Keycloak's registration form. Only the invited address can accept, and only from an account that has no data of its own yet. The invite page never sets one up, so the invitee doesn't get one just by looking. Existing accounts can't join for now.
+- **Allowlist**: the link carries `k`, an HMAC of the invited address keyed with the `labeleur` client secret. The app passes it on to Keycloak as `labeleur_invite`, and the allowlist step lets exactly that address register.
+
 - **Self-registration** asks for email and name. Keycloak sends a verification link, and the password is chosen after the address is confirmed.
 - **Forgotten passwords** are reset by email.
 - **Allowlist**: `LABELEUR_REGISTRATION_ALLOWLIST` on Keycloak limits who may register, as full addresses or whole domains (`anna@example.com, @example.org`). Empty or unset lets everyone with a verified email register. A small Keycloak provider (`keycloak/extension`) checks it in the registration form, so changing it needs only a Keycloak restart.

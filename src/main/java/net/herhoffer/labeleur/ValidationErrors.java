@@ -4,6 +4,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import jakarta.validation.ConstraintViolationException;
+import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 import org.jboss.resteasy.reactive.server.ServerExceptionMapper;
 
@@ -15,6 +16,15 @@ public class ValidationErrors
 
 	public record Problem(String message, Map<String, String> fields)
 	{
+	}
+
+	/**
+	 * A refusal the app can show as it is: {@code {"message": …}} with the
+	 * status.
+	 */
+	public static WebApplicationException problem(Response.Status status, String message)
+	{
+		return new WebApplicationException(Response.status(status).entity(new Problem(message, Map.of())).build());
 	}
 
 	@ServerExceptionMapper

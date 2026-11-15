@@ -2206,3 +2206,125 @@ textarea.input.contents-list {
   background: var(--accent-soft);
   color: var(--accent);
 }
+
+/* ── Invitation (/invite/…) ─────────────────────────────── */
+.invite-page {
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  padding: 24px 16px;
+  background: var(--desk);
+}
+
+.invite-card {
+  display: grid;
+  gap: 12px;
+  width: min(440px, 100%);
+  padding: 24px;
+  border-radius: 10px;
+  background: var(--paper);
+  box-shadow: var(--shadow-pop);
+}
+
+.invite-card .brand {
+  font: 600 12px var(--ui);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.invite-card h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.invite-card p {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.invite-card .problem {
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--error-bg);
+  color: var(--error);
+}
+
+.invite-card .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.invite-card .meta {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+/* ── People (Preferences) ───────────────────────────────── */
+.people {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--rule);
+}
+
+.people li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 13px;
+}
+
+.people .who {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.people .who b {
+  font-weight: 500;
+}
+
+.people .who small {
+  color: var(--ink-3);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.people .tag {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--liner);
+  color: var(--ink-2);
+  font-size: 11px;
+}
+
+.people .tag.pending {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.people .btn {
+  flex: none;
+}
+
+.invite-form {
+  display: flex;
+  gap: 8px;
+}
+
+.invite-form .input {
+  flex: 1;
+  min-width: 0;
+}

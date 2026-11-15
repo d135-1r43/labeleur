@@ -65,7 +65,7 @@ public class SettingsResource
 	@Operation(summary = "Preferences of every entity, by collection id")
 	public Map<String, EntityPrefs> all()
 	{
-		String owner = user.id();
+		String owner = user.ownerId();
 		Map<String, EntityPrefs> out = new LinkedHashMap<>();
 		for (var c : collections.all())
 		{
@@ -82,7 +82,7 @@ public class SettingsResource
 	public EntityPrefs put(@RestPath String id, @Valid @NotNull EntityPrefs prefs)
 	{
 		if (!collections.exists(id)) throw new NotFoundException("No collection named " + id);
-		String owner = user.id();
+		String owner = user.ownerId();
 		EntitySettings s = settings.findById(new OwnedKey(owner, id));
 		if (s == null)
 		{

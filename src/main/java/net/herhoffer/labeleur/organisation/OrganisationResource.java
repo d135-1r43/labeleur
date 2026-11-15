@@ -67,7 +67,7 @@ public class OrganisationResource
 	@Operation(summary = "The sender: name and return address")
 	public OrganisationView get()
 	{
-		return OrganisationView.of(profiles.findById(user.id()));
+		return OrganisationView.of(profiles.findById(user.ownerId()));
 	}
 
 	@PUT
@@ -75,7 +75,7 @@ public class OrganisationResource
 	@Operation(summary = "Change the sender")
 	public OrganisationView put(@Valid @NotNull OrganisationView view)
 	{
-		Profile p = profiles.findById(user.id());
+		Profile p = profiles.findById(user.ownerId());
 		p.name = view.name().strip();
 		var a = view.address();
 		p.company = blankToNull(a.company());
@@ -94,7 +94,7 @@ public class OrganisationResource
 	@Operation(summary = "The logo, as uploaded")
 	public Response logo()
 	{
-		Profile p = profiles.findById(user.id());
+		Profile p = profiles.findById(user.ownerId());
 		if (p.logo == null) throw new NotFoundException("No logo uploaded");
 		return Response.ok(p.logo, p.logoType)
 			// An SVG opened on its own must not run scripts in this origin.
@@ -115,7 +115,7 @@ public class OrganisationResource
 		if (!LOGO_TYPES.contains(mediaType)) throw new WebApplicationException("Upload a PNG, JPEG, GIF, WebP or SVG image", Response.Status.UNSUPPORTED_MEDIA_TYPE);
 		if (image == null || image.length == 0) throw new BadRequestException("The image is empty");
 		if (image.length > MAX_LOGO_BYTES) throw new WebApplicationException("The logo is larger than 2 MB", Response.Status.REQUEST_ENTITY_TOO_LARGE);
-		Profile p = profiles.findById(user.id());
+		Profile p = profiles.findById(user.ownerId());
 		p.logo = image;
 		p.logoType = mediaType;
 		p.logoUpdatedAt = Instant.now();
@@ -128,7 +128,7 @@ public class OrganisationResource
 	@Operation(summary = "Remove the logo")
 	public OrganisationView deleteLogo()
 	{
-		Profile p = profiles.findById(user.id());
+		Profile p = profiles.findById(user.ownerId());
 		p.logo = null;
 		p.logoType = null;
 		p.logoUpdatedAt = null;

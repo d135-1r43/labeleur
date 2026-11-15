@@ -6,7 +6,7 @@ import { kindById } from '../kinds';
 import type { KindId } from '../kinds/types';
 import { compose } from '../state/compose';
 import { useStore } from '../state/store';
-import { accountApi } from '../api/http';
+import { accountApi, membersApi, type Invitation, type Member } from '../api/http';
 import { countryName, SUPPORTED_COUNTRIES } from '../kinds/address/address';
 import { toDots } from '../engine/bitmap';
 import { Field, TextInput } from './controls';
@@ -189,6 +189,139 @@ function SenderCard() {
   );
 }
 
+/** Who shares the account. Inviting someone turns it into an organisation in which everyone may do everything. */
+function PeopleCard() {
+  const org = useStore((s) => s.org);
+  const me = useStore((s) => s.me);
+  const set = useStore((s) => s.set);
+  const [members, setMembers] = useState<Member[] | null>(null);
+  const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const [email, setEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ text: string; bad?: boolean } | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const load = () =>
+    membersApi.all().then(
+      (r) => (setMembers(r.members), setInvitations(r.invitations)),
+      (e: Error) => setMessage({ text: e.message, bad: true }),
+    );
+  useEffect(() => void load(), []);
+
+  const run = (action: Promise<unknown>, done?: string) => {
+    setBusy(true);
+    setMessage(null);
+    return action
+      .then(() => {
+        if (done) setMessage({ text: done });
+        return load();
+      })
+      .catch((e: Error) => setMessage({ text: e.message, bad: true }))
+      .finally(() => setBusy(false));
+  };
+  const invite = (e: React.FormEvent) => {
+    e.preventDefault();
+    const to = email.trim();
+    if (!to) return;
+    setBusy(true);
+    setMessage(null);
+    membersApi
+      .invite(to)
+      .then((i) => {
+        setEmail('');
+        setMessage(i.emailSent ? { text: `Invitation sent to ${i.email}.` } : { text: `The email to ${i.email} could not be sent. Copy the link and send it yourself.`, bad: true });
+        if (me && !me.organisation) set('me', { ...me, organisation: true });
+        return load();
+      })
+      .catch((e: Error) => setMessage({ text: e.message, bad: true }))
+      .finally(() => setBusy(false));
+  };
+  /** Back on an account of their own: the app starts over with it. */
+  const leave = (id: string) => {
+    setBusy(true);
+    membersApi.remove(id).then(
+      () => window.location.replace('/'),
+      (e: Error) => (setMessage({ text: e.message, bad: true }), setBusy(false)),
+    );
+  };
+  const copy = (i: Invitation) =>
+    navigator.clipboard.writeText(i.link).then(() => {
+      setCopied(i.token);
+      setTimeout(() => setCopied(null), 1500);
+    });
+
+  const alone = members !== null && members.length <= 1 && invitations.length === 0;
+  const name = org?.name || 'your organisation';
+  return (
+    <article className="sender-card">
+      <div className="content">
+        <div className="head">
+          <span className="name">People</span>
+          <small>{alone ? 'Invite someone to work on your labels with you. Your account becomes an organisation, and everyone in it can do everything.' : `Everyone in ${name} works on the same records, sender and settings, and can do everything.`}</small>
+        </div>
+        {members && (
+          <ul className="people" aria-label="Members and invitations">
+            {members.map((m) => (
+              <li key={m.id}>
+                <span className="who">
+                  <b>{m.name ?? m.email ?? 'Unnamed'}{m.you && ' (you)'}</b>
+                  {m.name && m.email && <small>{m.email}</small>}
+                </span>
+                {m.founder && members.length > 1 && <span className="tag" title="The organisation's data was this account's">Founder</span>}
+                {!m.founder && (
+                  <button
+                    className="btn ghost small danger"
+                    disabled={busy}
+                    onClick={() => (m.you ? leave(m.id) : void run(membersApi.remove(m.id), `${m.name ?? m.email} was removed.`))}
+                  >
+                    {m.you ? 'Leave' : 'Remove'}
+                  </button>
+                )}
+              </li>
+            ))}
+            {invitations.map((i) => (
+              <li key={i.token}>
+                <span className="who">
+                  <b>{i.email}</b>
+                  <small>Invited by {i.invitedBy} · valid until {new Date(i.expiresAt).toLocaleDateString()}</small>
+                </span>
+                <span className="tag pending">Pending</span>
+                <button className="btn ghost small" onClick={() => void copy(i)} aria-live="polite">
+                  {copied === i.token ? (
+                    <>
+                      <Icon.check /> Copied
+                    </>
+                  ) : (
+                    'Copy link'
+                  )}
+                </button>
+                <button className="btn ghost small danger" disabled={busy} onClick={() => void run(membersApi.revoke(i.token))}>
+                  Withdraw
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <form className="invite-form" onSubmit={invite}>
+          <input className="input" type="email" required placeholder="name@example.com" aria-label="Email address to invite" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <button className="btn small primary" type="submit" disabled={busy || !email.trim()}>
+            Invite
+          </button>
+        </form>
+        <p className="explain">
+          {message ? (
+            <span className={message.bad ? 'bad' : undefined} role="status">
+              {message.text}
+            </span>
+          ) : (
+            'The invitation goes out by email; the link is valid for 14 days. Only someone new to Labeleur can join: they create their account from the link.'
+          )}
+        </p>
+      </div>
+    </article>
+  );
+}
+
 /** Tells Claude Code (or another MCP client) how to reach this Labeleur's /mcp server. */
 function AssistantCard() {
   const origin = window.location.origin;
@@ -344,6 +477,7 @@ export function Preferences() {
       {open && (
         <div className="body">
           <SenderCard />
+          <PeopleCard />
           <AssistantCard />
           <div className="intro">
             <h3>Label types</h3>

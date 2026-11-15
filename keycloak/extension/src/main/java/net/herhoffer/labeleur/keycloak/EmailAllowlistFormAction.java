@@ -20,7 +20,8 @@ import org.keycloak.provider.ProviderConfigProperty;
 
 /**
  * A step in the registration form that turns away email addresses outside
- * {@code LABELEUR_REGISTRATION_ALLOWLIST}. Read on every registration, so
+ * {@code LABELEUR_REGISTRATION_ALLOWLIST}, unless they were invited to an
+ * organisation (see {@link InviteSignature}). Read on every registration, so
  * changing the variable and restarting Keycloak is enough.
  *
  * Only meaningful with email verification on: otherwise anyone could type an
@@ -30,6 +31,8 @@ public class EmailAllowlistFormAction implements FormAction, FormActionFactory
 {
 	public static final String ID = "labeleur-email-allowlist";
 	public static final String ENV = "LABELEUR_REGISTRATION_ALLOWLIST";
+	/** The labeleur client secret, shared with the app, which signs invitations. */
+	public static final String SECRET_ENV = "LABELEUR_OIDC_SECRET";
 
 	/** Message key in the Labeleur login theme. */
 	static final String NOT_ALLOWED = "emailNotAllowedMessage";
@@ -38,7 +41,9 @@ public class EmailAllowlistFormAction implements FormAction, FormActionFactory
 	public void validate(ValidationContext context)
 	{
 		MultivaluedMap<String, String> form = context.getHttpRequest().getDecodedFormParameters();
-		if (new EmailAllowlist(System.getenv(ENV)).allows(form.getFirst(UserModel.EMAIL)))
+		String email = form.getFirst(UserModel.EMAIL);
+		String invite = context.getAuthenticationSession().getClientNote(InviteSignature.CLIENT_NOTE);
+		if (new EmailAllowlist(System.getenv(ENV)).allows(email) || InviteSignature.invites(System.getenv(SECRET_ENV), email, invite))
 		{
 			context.success();
 			return;
@@ -97,7 +102,7 @@ public class EmailAllowlistFormAction implements FormAction, FormActionFactory
 	@Override
 	public String getHelpText()
 	{
-		return "Rejects registrations whose email is not listed in " + ENV + ". An empty or missing variable allows everyone.";
+		return "Rejects registrations whose email is not listed in " + ENV + " and was not invited to a Labeleur organisation. An empty or missing variable allows everyone.";
 	}
 
 	@Override

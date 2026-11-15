@@ -14,9 +14,10 @@ public class MeResource
 {
 	/**
 	 * The signed-in user, and where they manage their account and sign out.
-	 * {@code accountUrl} is Keycloak's account console.
+	 * {@code accountUrl} is Keycloak's account console. {@code organisation}
+	 * says whether they share their data with others.
 	 */
-	public record Me(String id, String name, String email, String accountUrl, String logoutUrl)
+	public record Me(String id, String name, String email, String accountUrl, String logoutUrl, boolean organisation)
 	{
 	}
 
@@ -30,11 +31,11 @@ public class MeResource
 	}
 
 	@GET
-	@Operation(summary = "The signed-in user; sets up their sample data on first call")
+	@Operation(summary = "The signed-in user; sets up their account's sample data on first call")
 	public Me me()
 	{
-		String id = user.id();
+		user.ownerId();
 		String email = user.email().orElse(null);
-		return new Me(id, user.name().orElse(email), email, authServer.map(u -> u.replaceAll("/+$", "") + "/account").orElse(null), "/logout");
+		return new Me(user.subject(), user.name().orElse(email), email, authServer.map(u -> u.replaceAll("/+$", "") + "/account").orElse(null), "/logout", user.membership().isPresent());
 	}
 }

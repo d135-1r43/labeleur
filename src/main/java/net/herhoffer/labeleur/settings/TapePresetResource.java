@@ -49,7 +49,7 @@ public class TapePresetResource
 	@Operation(summary = "The user's continuous-tape presets, shortest first")
 	public List<Preset> all()
 	{
-		return presets.forUser(user.id()).stream().map(Preset::of).toList();
+		return presets.forUser(user.ownerId()).stream().map(Preset::of).toList();
 	}
 
 	@POST
@@ -57,7 +57,7 @@ public class TapePresetResource
 	@Operation(summary = "Keep a cut length and direction; keeping one that exists returns it unchanged")
 	public Preset add(@Valid @NotNull Preset preset)
 	{
-		String owner = user.id();
+		String owner = user.ownerId();
 		String id = TapePreset.idOf(preset.lengthMm(), preset.readAlong());
 		TapePreset p = presets.findById(new OwnedKey(owner, id));
 		if (p == null)
@@ -78,6 +78,6 @@ public class TapePresetResource
 	@Operation(summary = "Forget a preset")
 	public void remove(@RestPath String id)
 	{
-		if (!presets.deleteById(new OwnedKey(user.id(), id))) throw new NotFoundException("No preset " + id);
+		if (!presets.deleteById(new OwnedKey(user.ownerId(), id))) throw new NotFoundException("No preset " + id);
 	}
 }

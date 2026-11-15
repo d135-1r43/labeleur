@@ -50,6 +50,8 @@ export interface Me {
   email?: string;
   accountUrl?: string;
   logoutUrl: string;
+  /** Shares their data with others: inviting someone turns an account into an organisation. */
+  organisation: boolean;
 }
 
 export const accountApi = {
@@ -73,6 +75,47 @@ export const accountApi = {
     if (res.status === 499 || res.status === 401) sessionEnded();
     return res.ok ? res.blob() : null;
   },
+};
+
+/** Someone sharing the account; the founder's account is the organisation's data. */
+export interface Member {
+  id: string;
+  name?: string;
+  email?: string;
+  founder: boolean;
+  you: boolean;
+}
+
+export interface Invitation {
+  token: string;
+  email: string;
+  invitedBy: string;
+  createdAt: string;
+  expiresAt: string;
+  /** Can be passed on by hand. */
+  link: string;
+  /** Only right after inviting: whether the email went out. */
+  emailSent?: boolean;
+}
+
+/** An invitation as the invitee sees it; `problem` says why they can't accept. */
+export interface InvitationDetails {
+  organisation: string;
+  invitedBy: string;
+  email: string;
+  signedInAs?: string;
+  expiresAt: string;
+  problem?: string;
+}
+
+export const membersApi = {
+  all: () => call<{ members: Member[]; invitations: Invitation[] }>('GET', '/organisation/members'),
+  invite: (email: string) => call<Invitation>('POST', '/organisation/invitations', { email }),
+  revoke: (token: string) => call<void>('DELETE', `/organisation/invitations/${encodeURIComponent(token)}`),
+  remove: (id: string) => call<void>('DELETE', `/organisation/members/${encodeURIComponent(id)}`),
+  /** Never sets up an account, so the invitee can still join after looking. */
+  invitation: (token: string) => call<InvitationDetails>('GET', `/invitations/${encodeURIComponent(token)}`),
+  accept: (token: string) => call<void>('POST', `/invitations/${encodeURIComponent(token)}/accept`),
 };
 
 export const recordsApi = {

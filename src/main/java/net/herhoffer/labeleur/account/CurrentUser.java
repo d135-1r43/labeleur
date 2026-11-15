@@ -5,36 +5,58 @@ import java.util.Optional;
 import io.quarkus.security.UnauthorizedException;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.enterprise.context.RequestScoped;
+import net.herhoffer.labeleur.organisation.Membership;
+import net.herhoffer.labeleur.organisation.MembershipRepository;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 
 /**
- * The signed-in user. Their OIDC subject owns every record they create; the
- * first time it is asked for, their sample data is set up.
+ * The signed-in user, and the account whose data they work on: their own, or
+ * their organisation's once they belong to one. The first time the account is
+ * asked for, its sample data is set up.
  */
 @RequestScoped
 public class CurrentUser
 {
 	private final SecurityIdentity identity;
 	private final Provisioner provisioner;
-	private boolean provisioned;
+	private final MembershipRepository memberships;
+	private String ownerId;
 
-	CurrentUser(SecurityIdentity identity, Provisioner provisioner)
+	CurrentUser(SecurityIdentity identity, Provisioner provisioner, MembershipRepository memberships)
 	{
 		this.identity = identity;
 		this.provisioner = provisioner;
+		this.memberships = memberships;
 	}
 
-	/** The OIDC subject, stable across email and name changes. */
-	public String id()
+	/** The person: their OIDC subject, stable across email and name changes. */
+	public String subject()
 	{
 		if (identity.isAnonymous()) throw new UnauthorizedException();
-		String id = identity.getPrincipal().getName();
-		if (!provisioned)
+		return identity.getPrincipal().getName();
+	}
+
+	/**
+	 * The key of every record, setting and print job the user sees: their
+	 * organisation's (its founder's subject), or their own subject without one.
+	 * Sets up the account's samples on first use.
+	 */
+	public String ownerId()
+	{
+		if (ownerId == null)
 		{
-			provisioner.ensure(id);
-			provisioned = true;
+			String subject = subject();
+			String owner = memberships.findByIdOptional(subject).map(m -> m.ownerId).orElse(subject);
+			provisioner.ensure(owner);
+			ownerId = owner;
 		}
-		return id;
+		return ownerId;
+	}
+
+	/** The user's membership, without one while they work on their own. */
+	public Optional<Membership> membership()
+	{
+		return memberships.findByIdOptional(subject());
 	}
 
 	public Optional<String> name()

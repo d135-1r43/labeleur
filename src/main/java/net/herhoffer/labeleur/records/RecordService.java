@@ -34,13 +34,13 @@ public class RecordService
 
 	public List<? extends RecordEntity> list(String collection)
 	{
-		return collections.get(collection).listInOrder(user.id());
+		return collections.get(collection).listInOrder(user.ownerId());
 	}
 
 	/** The record, or {@code null} if the user has none with that id. */
 	public RecordEntity find(String collection, String id)
 	{
-		return collections.get(collection).find(user.id(), id);
+		return collections.get(collection).find(user.ownerId(), id);
 	}
 
 	/**
@@ -56,7 +56,7 @@ public class RecordService
 	{
 		body.remove(List.of("id", "userId", "createdAt", "updatedAt"));
 		T incoming = mapper.convertValue(body, c.type());
-		incoming.userId = user.id();
+		incoming.userId = user.ownerId();
 		incoming.id = id;
 		var violations = validator.validate(incoming);
 		if (!violations.isEmpty()) throw new ConstraintViolationException(violations);
@@ -70,7 +70,7 @@ public class RecordService
 	@Transactional
 	public void delete(String collection, String id)
 	{
-		if (!collections.get(collection).delete(user.id(), id)) throw new NotFoundException();
+		if (!collections.get(collection).delete(user.ownerId(), id)) throw new NotFoundException();
 	}
 
 	/** Replace a collection with the sample records. */
@@ -78,7 +78,7 @@ public class RecordService
 	public List<? extends RecordEntity> reset(String collection)
 	{
 		RecordCollection<?> c = collections.get(collection);
-		String owner = user.id();
+		String owner = user.ownerId();
 		c.deleteAll(owner);
 		c.repository().flush();
 		seed.insert(c, owner);

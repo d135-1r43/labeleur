@@ -41,3 +41,5 @@ services:
     image: axllent/mailpit:v1.33.0
     ports:
       - "8025:8025"
+      # The app sends invitations here in dev.
+      - "1025:1025"
