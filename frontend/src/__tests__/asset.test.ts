@@ -5,6 +5,7 @@ import { typeSystemById } from '../engine/fonts';
 import { makeFrame } from '../engine/frame';
 import { mediaById } from '../engine/media';
 import { assetKind, printedAttributes } from '../kinds/asset/kind';
+import { dotsToMm } from '../engine/units';
 
 // Monospaced fake: every glyph is 0.5 em.
 const m: Measurer = {
@@ -50,6 +51,27 @@ describe('asset tag layout', () => {
     };
     const code = assetKind.layout(item, assetKind.defaultOptions, env).ops.find((op) => op.t === 'matrix');
     expect(code && code.t === 'matrix' && code.moduleDots).toBe(5);
+  });
+
+  it('puts the code top left and runs the tag across the label beneath it', () => {
+    const env = {
+      m,
+      frame: makeFrame({ media: mediaById('DK-22205'), readAlong: false, lengthMm: 45 }),
+      ts: typeSystemById('plex'),
+      locale: 'en' as const,
+      org: { name: 'Acme', address: {} } as never,
+      now: new Date(),
+      appUrl: 'https://labeleur.test',
+    };
+    const { ops } = assetKind.layout(item, assetKind.defaultOptions, env);
+    const code = ops.find((op) => op.t === 'matrix');
+    if (code?.t !== 'matrix') throw new Error('no code');
+    const codeRight = dotsToMm(code.xDots + code.cols * code.moduleDots);
+    const codeBottom = dotsToMm(code.yDots + code.rows * code.moduleDots);
+    expect(dotsToMm(code.yDots)).toBeLessThan(4);
+    const tag = ops.find((op) => 'text' in op && op.text === 'DRV-');
+    expect(tag && 'x' in tag && tag.x).toBeLessThan(codeRight);
+    expect(tag && 'y' in tag && tag.y).toBeGreaterThan(codeBottom);
   });
 
   it('keeps small square labels to code and tag', () => {

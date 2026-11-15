@@ -121,15 +121,17 @@ export const assetKind: KindDef<InventoryItem, AssetOptions> = {
       return { ops, issues };
     }
 
-    // Side by side: the code sits left, vertically centred; the text column runs the full printable height
-    // (or aligns to the code's edges when the code fills that height anyway).
+    // Side by side: the code sits top left; the text column beside it runs the full printable height
+    // (or aligns to the code's edges when the code fills that height anyway). Lines set below the code
+    // take the full label width.
     const codeSide = sideCode;
-    const codeY = (H - codeSide) / 2;
-    // Left, top and bottom of the code are bare paper out to the label edge; the right side is kept clear by the column gap.
+    const codeY = pad;
+    // Left and top of the code are bare paper out to the label edge; right and bottom are kept clear by the layout.
     const code = placeCode(o.symbology, payload, { x: pad, y: codeY, w: codeSide, h: codeSide }, frame, {
       align: 'start',
+      valign: 'start',
       maxModuleDots: SIDE_MODULE_DOTS,
-      clear: { left: pad + frame.offX, top: codeY + frame.offY, bottom: codeY + frame.offY, right: Infinity },
+      clear: { left: pad + frame.offX, top: codeY + frame.offY, bottom: Infinity, right: Infinity },
     });
     if (code.op) ops.push(code.op);
     issues.push(...code.issues);
@@ -141,8 +143,14 @@ export const assetKind: KindDef<InventoryItem, AssetOptions> = {
     const fullHeight = code.box.h >= (H - 2 * pad) * 0.9;
     const colTop = fullHeight ? code.box.y : pad;
     const colBottom = fullHeight ? code.box.y + code.box.h : H - pad;
+    // Below this line the code is out of the way and text runs the full width.
+    const freeY = code.box.y + code.box.h + Math.max(quiet, 1.6);
+    const across = (y: number) => (y >= freeY ? { x: pad, w: W - 2 * pad } : { x: colX, w: colW });
 
-    const tag = tagOps(env, item.assetTag, { x: colX, y: colTop, w: colW, h: colBottom - colTop }, 15 * k, 'left', 'bottom');
+    // The tag runs across the label under the code, unless it would come out smaller there than in the column.
+    const colTag = tagOps(env, item.assetTag, { x: colX, y: colTop, w: colW, h: colBottom - colTop }, 15 * k, 'left', 'bottom');
+    const wideTag = freeY < colBottom ? tagOps(env, item.assetTag, { x: pad, y: freeY, w: W - 2 * pad, h: colBottom - freeY }, 15 * k, 'left', 'bottom') : undefined;
+    const tag = wideTag && wideTag.ops.length && wideTag.sizePt >= colTag.sizePt ? wideTag : colTag;
     ops.push(...tag.ops);
     let bottom = tag.capTop;
 
@@ -161,7 +169,8 @@ export const assetKind: KindDef<InventoryItem, AssetOptions> = {
       const sizePt = clamp(6 * k, ts.minPt, 8);
       const style: TextStyle = { font: ts.roles.text, optical: true };
       const capH = m.metrics(style.font).cap * ptToMm(sizePt);
-      const fit = fitText(m, { text, box: { x: colX, y: bottom - ptToMm(sizePt) * 0.95 - capH, w: colW, h: capH }, style, maxPt: sizePt, minPt: ts.minPt, wrap: false, maxLines: 1 });
+      const y = bottom - ptToMm(sizePt) * 0.95 - capH;
+      const fit = fitText(m, { text, box: { ...across(y), y, h: capH }, style, maxPt: sizePt, minPt: ts.minPt, wrap: false, maxLines: 1 });
       ops.push(...fit.ops);
       if (fit.overflow) issues.push({ id, severity: 'warn', message, detail: 'Print fewer of them or use a longer label.' });
       bottom = fit.firstBaseline - capH;
@@ -202,19 +211,27 @@ export const assetKind: KindDef<InventoryItem, AssetOptions> = {
       }
     }
 
-    const nameBox = { x: colX, y: top, w: colW, h: Math.max(0, bottom - top - ptToMm(7 * k) * 0.45) };
+    const nameGap = ptToMm(7 * k) * 0.45;
+    const nameBox = { ...across(top), y: top, h: Math.max(0, bottom - top - nameGap) };
     if (nameBox.h > 1) {
-      const fit = fitText(m, {
-        text: typeset(item.name, locale),
-        box: nameBox,
-        style: { font: ts.roles.strong, optical: true, leading: 1.12 },
-        maxPt: 10.5 * k,
-        minPt: ts.minPt,
-        maxLines: H > 30 ? 3 : 2,
-        balance: true,
-        hyphenate: locale,
-        valign: 'middle',
-      });
+      const setName = (box: Box) =>
+        fitText(m, {
+          text: typeset(item.name, locale),
+          box,
+          style: { font: ts.roles.strong, optical: true, leading: 1.12 },
+          maxPt: 10.5 * k,
+          minPt: ts.minPt,
+          maxLines: H > 30 ? 3 : 2,
+          balance: true,
+          hyphenate: locale,
+          valign: 'middle',
+        });
+      let fit = setName(nameBox);
+      // Under the code, across the label, when the name fits there at least as large as in the column.
+      if (top < freeY && bottom - nameGap - freeY > 1) {
+        const wide = setName({ x: pad, y: freeY, w: W - 2 * pad, h: bottom - nameGap - freeY });
+        if (!wide.overflow && wide.sizePt >= fit.sizePt) fit = wide;
+      }
       ops.push(...fit.ops);
       if (fit.overflow) issues.push({ id: 'asset-name', severity: 'warn', message: 'Asset name is shortened', detail: `“${item.name}” is too long for this label.` });
     } else if (item.name.trim()) {
