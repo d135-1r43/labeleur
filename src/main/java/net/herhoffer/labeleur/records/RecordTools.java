@@ -31,7 +31,7 @@ public class RecordTools
 		COLLECTIONS.put("signs", "Signs: a title and a smaller subtitle. Fields: title, subtitle.");
 		COLLECTIONS.put("boxes", "Road cases and boxes with a packing list. Fields: title (max 300), items (list of strings, one per thing packed, max 200).");
 		COLLECTIONS.put("contacts", "Address labels. Fields: group (required, e.g. \"Customers\", \"Suppliers\"), country (required, ISO 3166-1 alpha-2 like \"DE\"), honorific, title, givenName, familyName, company, department, street, houseNumber, extra (c/o, apartment, PO box), postalCode, city, region, note (shown only in Labeleur, never printed).");
-		COLLECTIONS.put("inventory", "Asset tags. Fields: assetTag, name, category, location, model, serial, owner, purchased (YYYY-MM-DD).");
+		COLLECTIONS.put("inventory", "Asset tags. Fields: assetTag, name, category, location, model, serial, owner, purchased (YYYY-MM-DD), attributes (list of {key, value} for free properties like size or colour; reuse keys other assets already have).");
 		COLLECTIONS.put("locations", "Shelf and storage location labels. Fields: segments (1 to 4 of {label, value}, coarse to fine, e.g. aisle A, rack 03, shelf 2), area, contents, arrow (up, down, left or right: where the shelf is, seen from the label), sku.");
 		COLLECTIONS.put("recipes", "Kitchen prep labels. Fields: name, category, shelfLifeHours (at least 1), storage (chilled, frozen or ambient), allergens (EU 1169/2011 letter codes: A-H, L, M, N, O, P, R).");
 	}

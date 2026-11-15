@@ -1421,6 +1421,29 @@ a.btn[aria-disabled='true'] {
   height: 30px;
 }
 
+/* Attributes: name, value, print toggle, remove. */
+.segment.attribute {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 30px 30px;
+}
+
+.segment.attribute .input:first-child {
+  color: var(--ink);
+}
+
+.print-toggle {
+  color: var(--ink-3);
+}
+
+.print-toggle[aria-pressed='true'] {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.section > .hint {
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
 /* ───────── preferences ───────── */
 
 dialog.prefs {

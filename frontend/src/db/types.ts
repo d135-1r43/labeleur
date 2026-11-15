@@ -23,6 +23,13 @@ export interface InventoryItem extends DbRecord {
   location: string;
   owner?: string;
   purchased?: string;
+  /** Free properties such as size or colour; keys are whatever was typed on any asset before. */
+  attributes?: AssetAttribute[];
+}
+
+export interface AssetAttribute {
+  key: string;
+  value: string;
 }
 
 export interface StorageLocation extends DbRecord {
