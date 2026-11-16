@@ -38,7 +38,7 @@ services:
       io.quarkus.devservices.compose.wait_for.logs: .*Running the server in development mode.*
 
   mailpit:
-    image: axllent/mailpit:v1.33.0
+    image: axllent/mailpit:v1.33.1
     ports:
       - "8025:8025"
       # The app sends invitations here in dev.
