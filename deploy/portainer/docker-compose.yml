@@ -83,6 +83,8 @@ services:
       DB_USER: labeleur
       DB_PASSWORD: ${DB_PASSWORD}
       OIDC_URL: http://keycloak:8080/realms/labeleur
+      # MCP clients sign in at the public address.
+      OIDC_PUBLIC_URL: ${KEYCLOAK_URL}/realms/labeleur
       OIDC_SECRET: ${OIDC_SECRET}
       # Invitation links point here, and go out through the same mail server as Keycloak's.
       LABELEUR_URL: ${LABELEUR_URL:?set LABELEUR_URL}
