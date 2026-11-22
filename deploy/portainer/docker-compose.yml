@@ -6,6 +6,10 @@
 # The app and Keycloak join the external nginx-proxy-manager network and
 # publish no host ports. In Nginx Proxy Manager, point LABELEUR_URL at
 # labeleur:8080 and KEYCLOAK_URL at labeleur-keycloak:8080.
+#
+# The database also joins the external databasus network, so Databasus can
+# back it up at labeleur-db-1:5432. Create it once with
+# `docker network create databasus` before deploying.
 services:
   db:
     image: postgres:18
@@ -28,6 +32,9 @@ services:
       test: ["CMD-SHELL", "pg_isready -U labeleur"]
       interval: 5s
       retries: 20
+    networks:
+      - default
+      - databasus
 
   keycloak:
     container_name: labeleur-keycloak
@@ -107,4 +114,6 @@ volumes:
 
 networks:
   nginx-proxy-manager:
+    external: true
+  databasus:
     external: true
